@@ -1,0 +1,24 @@
+# 提取网页内容任务
+extract_content_task:
+  description: |
+    1. 严格使用提供的"Scrape and extract website content with BeautifulSoup"工具来访问目标网页：{{TARGET_URL}}
+    2. 工具将自动使用BeautifulSoup提取网页中所有新闻条目，包含：
+       - 新闻标题（title）
+       - 新闻摘要（summary）
+       - 发布时间（publish_time）
+       - 新闻链接（link）
+    3. 工具会自动过滤掉广告、导航栏、侧边栏等无关内容
+    4. 直接使用工具返回的JSON结果作为输出
+  expected_output: 'JSON格式的新闻列表，必须是从实际网页提取的最新内容，而不是示例数据，格式：[{"title":"xxx","summary":"xxx","publish_time":"xxx","link":"xxx"},...]'
+
+# 翻译新闻内容任务
+translate_content_task:
+  description: |
+    1. 接收提取的英文新闻JSON数据
+    2. 将每条新闻的标题和摘要翻译成中文，发布时间和链接保持不变
+    3. 翻译要求：
+       - 语义准确，无增删原意
+       - 符合中文新闻表达习惯
+       - 专业术语翻译准确（如cybersecurity、hacking等）
+    4. 输出包含中英文对照的结构化新闻列表
+  expected_output: 'JSON格式的双语新闻列表，示例：[{"title_en":"xxx","title_cn":"xxx","summary_en":"xxx","summary_cn":"xxx","publish_time":"xxx","link":"xxx"},...]'
