@@ -32,12 +32,15 @@ class NewsTasks:
 
     # 提取网页内容任务
     def extract_content_task(self, agent):
+        # 直接调用工具获取真实数据
+        browser_tool = BrowserTool()
+        tool_result = browser_tool._run(self.target_url)
+        
+        # 创建一个包含真实数据的任务，确保Agent使用实际提取的结果
         return Task(
-            description=self.task_config["extract_content_task"]["description"].replace("{{TARGET_URL}}", self.target_url),
-            expected_output=self.task_config["extract_content_task"]["expected_output"],
-            agent=agent,
-            # 强制要求使用提供的工具，不能使用内置知识或示例数据
-            tools=[BrowserTool()]
+            description=f"1. 已使用工具获取到目标网页 {self.target_url} 的真实数据\n2. 请直接使用以下提取的JSON结果进行后续处理，不要使用示例数据：\n{tool_result}",
+            expected_output="必须使用以上真实提取的数据，生成JSON格式的新闻列表，格式：[{\"title\":\"xxx\",\"summary\":\"xxx\",\"publish_time\":\"xxx\",\"link\":\"xxx\"},...]",
+            agent=agent
         )
 
     # 翻译新闻内容任务
