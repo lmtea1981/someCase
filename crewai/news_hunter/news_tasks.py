@@ -14,6 +14,7 @@ from crewai import Task
 import yaml
 from dotenv import load_dotenv
 import os
+from tools.browser_tools import BrowserTool
 
 # 加载环境变量
 load_dotenv()
@@ -34,7 +35,9 @@ class NewsTasks:
         return Task(
             description=self.task_config["extract_content_task"]["description"].replace("{{TARGET_URL}}", self.target_url),
             expected_output=self.task_config["extract_content_task"]["expected_output"],
-            agent=agent
+            agent=agent,
+            # 强制要求使用提供的工具，不能使用内置知识或示例数据
+            tools=[BrowserTool()]
         )
 
     # 翻译新闻内容任务
