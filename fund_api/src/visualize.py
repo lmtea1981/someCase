@@ -45,6 +45,23 @@ class FundVisualizer:
         self.deselect_all_button = ttk.Button(self.control_frame, text="取消全选", command=self.deselect_all)
         self.deselect_all_button.pack(side=tk.LEFT, padx=5)
         
+        # 时间区间设置
+        ttk.Label(self.control_frame, text="开始日期:").pack(side=tk.LEFT, padx=5)
+        self.start_date_var = tk.StringVar()
+        self.start_date_entry = ttk.Entry(self.control_frame, textvariable=self.start_date_var, width=10)
+        self.start_date_entry.pack(side=tk.LEFT, padx=5)
+        
+        ttk.Label(self.control_frame, text="结束日期:").pack(side=tk.LEFT, padx=5)
+        self.end_date_var = tk.StringVar()
+        self.end_date_entry = ttk.Entry(self.control_frame, textvariable=self.end_date_var, width=10)
+        self.end_date_entry.pack(side=tk.LEFT, padx=5)
+        
+        self.apply_date_button = ttk.Button(self.control_frame, text="应用日期范围", command=self.apply_date_range)
+        self.apply_date_button.pack(side=tk.LEFT, padx=5)
+        
+        self.reset_date_button = ttk.Button(self.control_frame, text="重置日期范围", command=self.reset_date_range)
+        self.reset_date_button.pack(side=tk.LEFT, padx=5)
+        
         # 创建matplotlib图表
         self.fig, self.ax = plt.subplots(figsize=(10, 5))
         self.canvas_chart = FigureCanvasTkAgg(self.fig, master=self.chart_frame)
@@ -53,6 +70,9 @@ class FundVisualizer:
         # 存储基金状态
         self.fund_status = {}  # 存储基金的显示状态
         self.fund_data = {}
+        
+        # 存储日期范围
+        self.date_range = None
         
         # 添加十字线和数据提示
         self.vline = self.ax.axvline(color='gray', linestyle='--', alpha=0.5)
@@ -174,13 +194,27 @@ class FundVisualizer:
                     data = self.fund_data[fund_name]
                     if data['dates'] and data['values']:
                         if status:
+                            # 过滤日期范围内的数据
+                            filtered_dates = []
+                            filtered_values = []
+                            for date, value in zip(data['dates'], data['values']):
+                                if self.date_range:
+                                    start_date, end_date = self.date_range
+                                    if start_date <= date <= end_date:
+                                        filtered_dates.append(date)
+                                        filtered_values.append(value)
+                                else:
+                                    filtered_dates.append(date)
+                                    filtered_values.append(value)
+                            
                             # 如果是距离鼠标最近的基金，加粗显示
-                            if fund_name == closest_fund:
-                                self.ax.plot(data['dates'], data['values'], label=fund_name, linewidth=3)
-                            else:
-                                self.ax.plot(data['dates'], data['values'], label=fund_name, linewidth=1)
-                            all_dates.extend(data['dates'])
-                            all_values.extend(data['values'])
+                            if filtered_dates and filtered_values:
+                                if fund_name == closest_fund:
+                                    self.ax.plot(filtered_dates, filtered_values, label=fund_name, linewidth=3)
+                                else:
+                                    self.ax.plot(filtered_dates, filtered_values, label=fund_name, linewidth=1)
+                                all_dates.extend(filtered_dates)
+                                all_values.extend(filtered_values)
                         else:
                             # 基金禁用时，只添加标签到图例
                             fund_labels.append(fund_name)
@@ -403,6 +437,19 @@ class FundVisualizer:
             messagebox.showerror("错误", f"加载数据失败: {e}")
             print(f"加载数据失败: {e}")
         
+        # 设置时间区间的开始时间为数据集中最早的时间
+        if self.fund_data:
+            all_dates = []
+            for fund_name, data in self.fund_data.items():
+                if data['dates']:
+                    all_dates.extend(data['dates'])
+            if all_dates:
+                earliest_date = min(all_dates)
+                latest_date = max(all_dates)
+                self.start_date_var.set(earliest_date.strftime('%Y-%m-%d'))
+                self.end_date_var.set(latest_date.strftime('%Y-%m-%d'))
+                print(f"设置默认日期范围: {earliest_date} 到 {latest_date}")
+        
         # 更新图表
         self.update_chart()
     
@@ -416,8 +463,6 @@ class FundVisualizer:
         self.tooltip = self.ax.text(0.02, 0.95, '', transform=self.ax.transAxes, bbox=dict(boxstyle='round,pad=0.5', fc='yellow', alpha=0.7))
         self.tooltip.set_visible(False)
         
-        # 收集所有基金的标签，用于图例显示
-        fund_labels = []
         # 绘制选中的基金
         plotted_funds = 0
         all_dates = []
@@ -430,22 +475,34 @@ class FundVisualizer:
                     if data['dates'] and data['values']:
                         # 只有当基金启用时才绘制曲线
                         if status:
+                            # 过滤日期范围内的数据
+                            filtered_dates = []
+                            filtered_values = []
+                            for date, value in zip(data['dates'], data['values']):
+                                if self.date_range:
+                                    start_date, end_date = self.date_range
+                                    if start_date <= date <= end_date:
+                                        filtered_dates.append(date)
+                                        filtered_values.append(value)
+                                else:
+                                    filtered_dates.append(date)
+                                    filtered_values.append(value)
+                            
                             # 只绘制折线，不显示数据点
-                            self.ax.plot(data['dates'], data['values'], label=fund_name)
-                            plotted_funds += 1
-                            all_dates.extend(data['dates'])
-                            all_values.extend(data['values'])
-                            print(f"绘制基金: {fund_name}, 数据点数量: {len(data['dates'])}")
-                        else:
-                            # 基金禁用时，只添加标签到图例
-                            fund_labels.append(fund_name)
+                            if filtered_dates and filtered_values:
+                                self.ax.plot(filtered_dates, filtered_values, label=fund_name)
+                                plotted_funds += 1
+                                all_dates.extend(filtered_dates)
+                                all_values.extend(filtered_values)
+                                print(f"绘制基金: {fund_name}, 数据点数量: {len(filtered_dates)}")
                 except Exception as e:
                     print(f"处理基金 {fund_name} 出错: {e}")
         
-        # 添加禁用基金的标签到图例
-        for fund_name in fund_labels:
-            # 使用空数据绘制一个不可见的线条，只为了在图例中显示
-            self.ax.plot([], [], label=fund_name, alpha=0)
+        # 为所有基金添加图例项，包括禁用的基金
+        for fund_name, status in self.fund_status.items():
+            if fund_name in self.fund_data and not status:
+                # 为禁用的基金添加图例项
+                self.ax.plot([], [], label=fund_name, alpha=0)
         
         print(f"共绘制 {plotted_funds} 个基金")
         
@@ -477,7 +534,7 @@ class FundVisualizer:
         self.fig.autofmt_xdate()
         
         # 添加图例
-        if plotted_funds > 0:
+        if self.fund_status:
             legend = self.ax.legend(loc='upper left', bbox_to_anchor=(1, 1), fontsize='small')
             # 为图例添加点击事件并设置颜色
             for i, text in enumerate(legend.get_texts()):
@@ -491,9 +548,6 @@ class FundVisualizer:
         
         # 调整布局
         self.fig.tight_layout()
-        
-        # 重新绑定鼠标移动事件
-        self.canvas_chart.mpl_connect('motion_notify_event', self.on_mouse_move)
         
         # 刷新图表
         self.canvas_chart.draw()
@@ -562,12 +616,42 @@ class FundVisualizer:
                 self.fund_status[fund_name] = (fund_name == closest_fund)
             self.update_chart()
         
+    def apply_date_range(self):
+        """应用日期范围"""
+        start_date_str = self.start_date_var.get()
+        end_date_str = self.end_date_var.get()
+        
+        try:
+            from datetime import datetime
+            start_date = datetime.strptime(start_date_str, '%Y-%m-%d')
+            end_date = datetime.strptime(end_date_str, '%Y-%m-%d')
+            
+            if start_date > end_date:
+                messagebox.showerror("错误", "开始日期不能晚于结束日期")
+                return
+            
+            self.date_range = (start_date, end_date)
+            self.update_chart()
+            print(f"应用日期范围: {start_date} 到 {end_date}")
+        except ValueError:
+            messagebox.showerror("错误", "日期格式错误，请使用YYYY-MM-DD格式")
+    
+    def reset_date_range(self):
+        """重置日期范围"""
+        self.start_date_var.set("")
+        self.end_date_var.set("")
+        self.date_range = None
+        self.update_chart()
+        print("重置日期范围")
+    
     def on_legend_clicked(self, event):
         """处理图例点击事件"""
         # 切换基金的显示状态
         fund_name = event.artist.get_text()
         if fund_name in self.fund_status:
             self.fund_status[fund_name] = not self.fund_status[fund_name]
+            # 强制清除图表并重新绘制
+            self.ax.clear()
             self.update_chart()
 
 def main():
