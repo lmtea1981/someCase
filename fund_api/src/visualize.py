@@ -62,6 +62,26 @@ class FundVisualizer:
         self.reset_date_button = ttk.Button(self.control_frame, text="重置日期范围", command=self.reset_date_range)
         self.reset_date_button.pack(side=tk.LEFT, padx=5)
         
+        # 趋势筛选复选框
+        self.rising_var = tk.BooleanVar()
+        self.rising_check = ttk.Checkbutton(self.control_frame, text="上升趋势", variable=self.rising_var, command=self.update_chart)
+        self.rising_check.pack(side=tk.LEFT, padx=5)
+        
+        self.falling_var = tk.BooleanVar()
+        self.falling_check = ttk.Checkbutton(self.control_frame, text="下降趋势", variable=self.falling_var, command=self.update_chart)
+        self.falling_check.pack(side=tk.LEFT, padx=5)
+        
+        # 波形匹配功能
+        self.wave_match_var = tk.BooleanVar()
+        self.wave_match_check = ttk.Checkbutton(self.control_frame, text="波形匹配", variable=self.wave_match_var, command=self.update_chart)
+        self.wave_match_check.pack(side=tk.LEFT, padx=5)
+        
+        ttk.Label(self.control_frame, text="相似度:").pack(side=tk.LEFT, padx=5)
+        self.similarity_var = tk.StringVar(value="80")
+        self.similarity_entry = ttk.Entry(self.control_frame, textvariable=self.similarity_var, width=5)
+        self.similarity_entry.pack(side=tk.LEFT, padx=5)
+        ttk.Label(self.control_frame, text="%").pack(side=tk.LEFT, padx=5)
+        
         # 创建matplotlib图表
         self.fig, self.ax = plt.subplots(figsize=(10, 5))
         self.canvas_chart = FigureCanvasTkAgg(self.fig, master=self.chart_frame)
@@ -189,6 +209,24 @@ class FundVisualizer:
             # 收集所有基金的标签，用于图例显示
             fund_labels = []
             # 绘制折线但不显示数据点
+            # 获取相似度阈值
+            try:
+                similarity_threshold = float(self.similarity_var.get())
+            except ValueError:
+                similarity_threshold = 80
+            
+            # 找出波形相似的基金
+            similar_funds = []
+            if self.wave_match_var.get() and closest_fund:
+                clicked_data = self.fund_data[closest_fund]
+                for fund_name, status in self.fund_status.items():
+                    if status and fund_name in self.fund_data and fund_name != closest_fund:
+                        current_data = self.fund_data[fund_name]
+                        if clicked_data['values'] and current_data['values']:
+                            similarity = self.calculate_similarity(clicked_data['values'], current_data['values'])
+                            if similarity >= similarity_threshold:
+                                similar_funds.append(fund_name)
+            
             for fund_name, status in self.fund_status.items():
                 if fund_name in self.fund_data:
                     data = self.fund_data[fund_name]
@@ -207,9 +245,26 @@ class FundVisualizer:
                                     filtered_dates.append(date)
                                     filtered_values.append(value)
                             
-                            # 如果是距离鼠标最近的基金，加粗显示
-                            if filtered_dates and filtered_values:
-                                if fund_name == closest_fund:
+                            # 趋势筛选
+                            show_fund = True
+                            if (self.rising_var.get() or self.falling_var.get()) and len(filtered_values) >= 2:
+                                # 计算最后一天与前一天的净值变化
+                                last_value = filtered_values[-1]
+                                prev_value = filtered_values[-2]
+                                
+                                if self.rising_var.get() and not self.falling_var.get():
+                                    # 只显示上升趋势的基金
+                                    if last_value <= prev_value:
+                                        show_fund = False
+                                elif self.falling_var.get() and not self.rising_var.get():
+                                    # 只显示下降趋势的基金
+                                    if last_value >= prev_value:
+                                        show_fund = False
+                                # 如果两个复选框都勾选，显示所有基金
+                            
+                            # 如果是距离鼠标最近的基金或波形相似的基金，加粗显示
+                            if filtered_dates and filtered_values and show_fund:
+                                if fund_name == closest_fund or fund_name in similar_funds:
                                     self.ax.plot(filtered_dates, filtered_values, label=fund_name, linewidth=3)
                                 else:
                                     self.ax.plot(filtered_dates, filtered_values, label=fund_name, linewidth=1)
@@ -488,8 +543,25 @@ class FundVisualizer:
                                     filtered_dates.append(date)
                                     filtered_values.append(value)
                             
+                            # 趋势筛选
+                            show_fund = True
+                            if (self.rising_var.get() or self.falling_var.get()) and len(filtered_values) >= 2:
+                                # 计算最后一天与前一天的净值变化
+                                last_value = filtered_values[-1]
+                                prev_value = filtered_values[-2]
+                                
+                                if self.rising_var.get() and not self.falling_var.get():
+                                    # 只显示上升趋势的基金
+                                    if last_value <= prev_value:
+                                        show_fund = False
+                                elif self.falling_var.get() and not self.rising_var.get():
+                                    # 只显示下降趋势的基金
+                                    if last_value >= prev_value:
+                                        show_fund = False
+                                # 如果两个复选框都勾选，显示所有基金
+                            
                             # 只绘制折线，不显示数据点
-                            if filtered_dates and filtered_values:
+                            if filtered_dates and filtered_values and show_fund:
                                 self.ax.plot(filtered_dates, filtered_values, label=fund_name)
                                 plotted_funds += 1
                                 all_dates.extend(filtered_dates)
@@ -568,9 +640,44 @@ class FundVisualizer:
             self.fund_status[fund_name] = False
         self.update_chart()
     
+    def calculate_similarity(self, series1, series2):
+        """计算两个序列的相似度（基于增长率曲线的皮尔逊相关系数）"""
+        import numpy as np
+        
+        # 确保两个序列长度相同
+        min_length = min(len(series1), len(series2))
+        if min_length < 3:  # 需要至少3个点来计算增长率
+            return 0
+        
+        series1 = series1[:min_length]
+        series2 = series2[:min_length]
+        
+        # 计算增长率曲线
+        def calculate_growth_rate(series):
+            growth_rates = []
+            for i in range(1, len(series)):
+                if series[i-1] != 0:
+                    growth_rate = (series[i] - series[i-1]) / series[i-1] * 100
+                    growth_rates.append(growth_rate)
+                else:
+                    growth_rates.append(0)
+            return growth_rates
+        
+        # 计算两个序列的增长率
+        growth1 = calculate_growth_rate(series1)
+        growth2 = calculate_growth_rate(series2)
+        
+        # 计算皮尔逊相关系数
+        correlation = np.corrcoef(growth1, growth2)[0, 1]
+        
+        # 转换为相似度百分比
+        similarity = (correlation + 1) / 2 * 100
+        
+        return similarity
+    
     def on_click(self, event):
-        """处理鼠标点击事件，点击折线后只显示该折线"""
-        print(f"鼠标点击事件: x={event.xdata}, y={event.ydata}")
+        """处理鼠标点击事件，左键点击时显示所选折线及波形相似的折线，其它隐藏；右键点击时隐藏所选折线，其它不变"""
+        print(f"鼠标点击事件: x={event.xdata}, y={event.ydata}, button={event.button}")
         
         # 检查事件是否有效
         if event is None or event.xdata is None or event.ydata is None:
@@ -611,9 +718,35 @@ class FundVisualizer:
         
         if closest_fund:
             print(f"点击了基金: {closest_fund}")
-            # 只显示点击的基金，隐藏其他基金
-            for fund_name in self.fund_status:
-                self.fund_status[fund_name] = (fund_name == closest_fund)
+            if event.button == 1:  # 左键点击
+                # 获取相似度阈值
+                try:
+                    similarity_threshold = float(self.similarity_var.get())
+                except ValueError:
+                    similarity_threshold = 80
+                
+                # 只显示点击的基金和波形相似的基金
+                for fund_name in self.fund_status:
+                    if fund_name == closest_fund:
+                        self.fund_status[fund_name] = True
+                    elif self.wave_match_var.get() and fund_name in self.fund_data:
+                        # 计算与点击基金的相似度
+                        clicked_data = self.fund_data[closest_fund]
+                        current_data = self.fund_data[fund_name]
+                        
+                        if clicked_data['values'] and current_data['values']:
+                            similarity = self.calculate_similarity(clicked_data['values'], current_data['values'])
+                            if similarity >= similarity_threshold:
+                                self.fund_status[fund_name] = True
+                            else:
+                                self.fund_status[fund_name] = False
+                        else:
+                            self.fund_status[fund_name] = False
+                    else:
+                        self.fund_status[fund_name] = False
+            elif event.button == 3:  # 右键点击
+                # 隐藏点击的基金，其他基金保持不变
+                self.fund_status[closest_fund] = False
             self.update_chart()
         
     def apply_date_range(self):
