@@ -45,19 +45,25 @@ class FundVisualizer:
         self.deselect_all_button = ttk.Button(self.control_frame, text="取消全选", command=self.deselect_all)
         self.deselect_all_button.pack(side=tk.LEFT, padx=5)
         
+        # 基金搜索功能
+        ttk.Label(self.control_frame, text="搜索基金:").pack(side=tk.LEFT, padx=5)
+        self.search_var = tk.StringVar()
+        self.search_entry = ttk.Entry(self.control_frame, textvariable=self.search_var, width=20)
+        self.search_entry.pack(side=tk.LEFT, padx=5)
+        self.search_entry.bind('<Return>', lambda event: self.search_funds())
+        
         # 时间区间设置
         ttk.Label(self.control_frame, text="开始日期:").pack(side=tk.LEFT, padx=5)
         self.start_date_var = tk.StringVar()
         self.start_date_entry = ttk.Entry(self.control_frame, textvariable=self.start_date_var, width=10)
         self.start_date_entry.pack(side=tk.LEFT, padx=5)
+        self.start_date_entry.bind('<Return>', lambda event: self.apply_date_range())
         
         ttk.Label(self.control_frame, text="结束日期:").pack(side=tk.LEFT, padx=5)
         self.end_date_var = tk.StringVar()
         self.end_date_entry = ttk.Entry(self.control_frame, textvariable=self.end_date_var, width=10)
         self.end_date_entry.pack(side=tk.LEFT, padx=5)
-        
-        self.apply_date_button = ttk.Button(self.control_frame, text="应用日期范围", command=self.apply_date_range)
-        self.apply_date_button.pack(side=tk.LEFT, padx=5)
+        self.end_date_entry.bind('<Return>', lambda event: self.apply_date_range())
         
         self.reset_date_button = ttk.Button(self.control_frame, text="重置日期范围", command=self.reset_date_range)
         self.reset_date_button.pack(side=tk.LEFT, padx=5)
@@ -80,6 +86,19 @@ class FundVisualizer:
         self.similarity_var = tk.StringVar(value="80")
         self.similarity_entry = ttk.Entry(self.control_frame, textvariable=self.similarity_var, width=5)
         self.similarity_entry.pack(side=tk.LEFT, padx=5)
+        self.similarity_entry.bind('<Return>', lambda event: self.update_chart())
+        ttk.Label(self.control_frame, text="%").pack(side=tk.LEFT, padx=5)
+        
+        # 跌幅筛选功能
+        self.drop_filter_var = tk.BooleanVar()
+        self.drop_filter_check = ttk.Checkbutton(self.control_frame, text="跌幅筛选", variable=self.drop_filter_var, command=self.update_chart)
+        self.drop_filter_check.pack(side=tk.LEFT, padx=5)
+        
+        ttk.Label(self.control_frame, text="幅度:").pack(side=tk.LEFT, padx=5)
+        self.drop_threshold_var = tk.StringVar(value="4")
+        self.drop_threshold_entry = ttk.Entry(self.control_frame, textvariable=self.drop_threshold_var, width=5)
+        self.drop_threshold_entry.pack(side=tk.LEFT, padx=5)
+        self.drop_threshold_entry.bind('<Return>', lambda event: self.update_chart())
         ttk.Label(self.control_frame, text="%").pack(side=tk.LEFT, padx=5)
         
         # 创建matplotlib图表
@@ -261,6 +280,21 @@ class FundVisualizer:
                                     if last_value >= prev_value:
                                         show_fund = False
                                 # 如果两个复选框都勾选，显示所有基金
+                            
+                            # 跌幅筛选
+                            if self.drop_filter_var.get() and len(filtered_values) >= 2:
+                                # 计算指定时间范围内的跌幅（基于最大净值）
+                                max_value = max(filtered_values)
+                                last_value = filtered_values[-1]
+                                if max_value > 0:
+                                    drop_rate = (max_value - last_value) / max_value * 100
+                                    try:
+                                        drop_threshold = float(self.drop_threshold_var.get())
+                                    except ValueError:
+                                        drop_threshold = 4
+                                    # 只显示跌幅超过阈值的基金
+                                    if drop_rate < drop_threshold:
+                                        show_fund = False
                             
                             # 如果是距离鼠标最近的基金或波形相似的基金，加粗显示
                             if filtered_dates and filtered_values and show_fund:
@@ -560,6 +594,21 @@ class FundVisualizer:
                                         show_fund = False
                                 # 如果两个复选框都勾选，显示所有基金
                             
+                            # 跌幅筛选
+                            if self.drop_filter_var.get() and len(filtered_values) >= 2:
+                                # 计算指定时间范围内的跌幅（基于最大净值）
+                                max_value = max(filtered_values)
+                                last_value = filtered_values[-1]
+                                if max_value > 0:
+                                    drop_rate = (max_value - last_value) / max_value * 100
+                                    try:
+                                        drop_threshold = float(self.drop_threshold_var.get())
+                                    except ValueError:
+                                        drop_threshold = 4
+                                    # 只显示跌幅超过阈值的基金
+                                    if drop_rate < drop_threshold:
+                                        show_fund = False
+                            
                             # 只绘制折线，不显示数据点
                             if filtered_dates and filtered_values and show_fund:
                                 self.ax.plot(filtered_dates, filtered_values, label=fund_name)
@@ -776,6 +825,25 @@ class FundVisualizer:
         self.date_range = None
         self.update_chart()
         print("重置日期范围")
+    
+    def search_funds(self):
+        """搜索基金（模糊匹配）"""
+        search_text = self.search_var.get().strip().lower()
+        
+        if not search_text:
+            # 如果搜索文本为空，显示所有基金
+            for fund_name in self.fund_status:
+                self.fund_status[fund_name] = True
+        else:
+            # 模糊匹配基金名称
+            for fund_name in self.fund_status:
+                if search_text in fund_name.lower():
+                    self.fund_status[fund_name] = True
+                else:
+                    self.fund_status[fund_name] = False
+        
+        self.update_chart()
+        print(f"搜索基金: {search_text}")
     
     def on_legend_clicked(self, event):
         """处理图例点击事件"""

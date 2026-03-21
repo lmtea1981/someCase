@@ -306,21 +306,21 @@ def main():
         # 查询多个页码
         while True:
             try:
-                start_page = int(input("请输入起始页码（1-6）："))
-                if 1 <= start_page <= 6:
+                start_page = int(input("请输入起始页码（1及以上）："))
+                if start_page >= 1:
                     break
                 else:
-                    print("请输入1到6之间的数字")
+                    print("请输入1及以上的数字")
             except ValueError:
                 print("请输入有效的数字")
         
         while True:
             try:
-                end_page = int(input("请输入结束页码（1-6）："))
-                if start_page <= end_page <= 6:
+                end_page = int(input("请输入结束页码（不小于起始页码）："))
+                if end_page >= start_page:
                     break
                 else:
-                    print(f"请输入{start_page}到6之间的数字")
+                    print(f"请输入不小于{start_page}的数字")
             except ValueError:
                 print("请输入有效的数字")
         
@@ -329,12 +329,12 @@ def main():
         # 查询单个页码
         while True:
             try:
-                start_page = int(input("请输入页码（1-6）："))
-                if 1 <= start_page <= 6:
+                start_page = int(input("请输入页码（1及以上）："))
+                if start_page >= 1:
                     end_page = start_page
                     break
                 else:
-                    print("请输入1到6之间的数字")
+                    print("请输入1及以上的数字")
             except ValueError:
                 print("请输入有效的数字")
         
