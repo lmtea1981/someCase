@@ -1,0 +1,13 @@
+{
+  "name": "cls-news-scraper",
+  "version": "1.0.0",
+  "description": "财联社新闻头条和电报信息获取工具",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "axios": "^1.6.2",
+    "cheerio": "^1.0.0-rc.12"
+  }
+}
