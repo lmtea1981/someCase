@@ -128,6 +128,9 @@ class FundVisualizer:
         # 绑定拾取事件（用于图例点击）
         self.canvas_chart.mpl_connect('pick_event', self.on_legend_clicked)
         
+        # 存储图例对象
+        self.legend = None
+        
         # 加载数据
         self.load_data()
     
@@ -656,9 +659,9 @@ class FundVisualizer:
         
         # 添加图例
         if self.fund_status:
-            legend = self.ax.legend(loc='upper left', bbox_to_anchor=(1, 1), fontsize='small')
+            self.legend = self.ax.legend(loc='upper left', bbox_to_anchor=(1, 1), fontsize='small')
             # 为图例添加点击事件并设置颜色
-            for i, text in enumerate(legend.get_texts()):
+            for i, text in enumerate(self.legend.get_texts()):
                 fund_name = text.get_text()
                 text.set_picker(True)
                 # 根据基金状态设置颜色
@@ -846,14 +849,157 @@ class FundVisualizer:
         print(f"搜索基金: {search_text}")
     
     def on_legend_clicked(self, event):
-        """处理图例点击事件"""
-        # 切换基金的显示状态
+        """处理图例点击事件
+        左键点击：突出显示该图例项和对应折线
+        右键点击：切换该图例项的显示或隐藏状态
+        """
+        # 获取点击的基金名称
         fund_name = event.artist.get_text()
         if fund_name in self.fund_status:
-            self.fund_status[fund_name] = not self.fund_status[fund_name]
-            # 强制清除图表并重新绘制
-            self.ax.clear()
-            self.update_chart()
+            # 检查鼠标按钮（1=左键，3=右键）
+            if event.mouseevent.button == 1:
+                # 左键点击：突出显示该基金
+                # 重新绘制图表，突出显示该基金
+                self.ax.clear()
+                
+                # 重新创建十字线和数据提示
+                self.vline = self.ax.axvline(color='gray', linestyle='--', alpha=0.5)
+                self.hline = self.ax.axhline(color='gray', linestyle='--', alpha=0.5)
+                self.vline.set_visible(False)
+                self.hline.set_visible(False)
+                self.tooltip = self.ax.text(0.02, 0.95, '', transform=self.ax.transAxes, bbox=dict(boxstyle='round,pad=0.5', fc='yellow', alpha=0.7))
+                self.tooltip.set_visible(False)
+                
+                # 收集所有数据点，用于设置轴范围
+                all_dates = []
+                all_values = []
+                
+                # 绘制基金折线
+                for fund_name_current, status in self.fund_status.items():
+                    if fund_name_current in self.fund_data:
+                        data = self.fund_data[fund_name_current]
+                        if data['dates'] and data['values']:
+                            if status:
+                                # 过滤日期范围内的数据
+                                filtered_dates = []
+                                filtered_values = []
+                                for date, value in zip(data['dates'], data['values']):
+                                    if self.date_range:
+                                        start_date, end_date = self.date_range
+                                        if start_date <= date <= end_date:
+                                            filtered_dates.append(date)
+                                            filtered_values.append(value)
+                                    else:
+                                        filtered_dates.append(date)
+                                        filtered_values.append(value)
+                                
+                                # 趋势筛选
+                                show_fund = True
+                                if (self.rising_var.get() or self.falling_var.get()) and len(filtered_values) >= 2:
+                                    # 计算最后一天与前一天的净值变化
+                                    last_value = filtered_values[-1]
+                                    prev_value = filtered_values[-2]
+                                    
+                                    if self.rising_var.get() and not self.falling_var.get():
+                                        # 只显示上升趋势的基金
+                                        if last_value <= prev_value:
+                                            show_fund = False
+                                    elif self.falling_var.get() and not self.rising_var.get():
+                                        # 只显示下降趋势的基金
+                                        if last_value >= prev_value:
+                                            show_fund = False
+                                    # 如果两个复选框都勾选，显示所有基金
+                                
+                                # 跌幅筛选
+                                if self.drop_filter_var.get() and len(filtered_values) >= 2:
+                                    # 计算指定时间范围内的跌幅（基于最大净值）
+                                    max_value = max(filtered_values)
+                                    last_value = filtered_values[-1]
+                                    if max_value > 0:
+                                        drop_rate = (max_value - last_value) / max_value * 100
+                                        try:
+                                            drop_threshold = float(self.drop_threshold_var.get())
+                                        except ValueError:
+                                            drop_threshold = 4
+                                        # 只显示跌幅超过阈值的基金
+                                        if drop_rate < drop_threshold:
+                                            show_fund = False
+                                
+                                # 如果是被点击的基金，加粗显示
+                                if filtered_dates and filtered_values and show_fund:
+                                    if fund_name_current == fund_name:
+                                        self.ax.plot(filtered_dates, filtered_values, label=fund_name_current, linewidth=3)
+                                    else:
+                                        self.ax.plot(filtered_dates, filtered_values, label=fund_name_current, linewidth=1)
+                                    all_dates.extend(filtered_dates)
+                                    all_values.extend(filtered_values)
+                
+                # 为所有基金添加图例项，包括禁用的基金
+                for fund_name_current, status in self.fund_status.items():
+                    if fund_name_current in self.fund_data and not status:
+                        # 为禁用的基金添加图例项
+                        self.ax.plot([], [], label=fund_name_current, alpha=0)
+                
+                # 设置x轴范围为所有数据的实际范围
+                if all_dates:
+                    min_date = min(all_dates)
+                    max_date = max(all_dates)
+                    self.ax.set_xlim(min_date, max_date)
+                
+                # 设置y轴范围，增加一些边距以更好地呈现折线变化幅度
+                if all_values:
+                    min_value = min(all_values)
+                    max_value = max(all_values)
+                    # 计算边距，确保折线不会紧贴图表边缘
+                    margin = (max_value - min_value) * 0.1
+                    if margin == 0:  # 防止所有值相同的情况
+                        margin = 0.1
+                    self.ax.set_ylim(min_value - margin, max_value + margin)
+                
+                # 设置图表属性
+                self.ax.set_title('基金净值走势')
+                self.ax.set_xlabel('日期')
+                self.ax.set_ylabel('单位净值')
+                self.ax.grid(True, linestyle='--', alpha=0.7)
+                
+                # 自动调整日期标签
+                self.fig.autofmt_xdate()
+                
+                # 添加图例
+                if self.fund_status:
+                    self.legend = self.ax.legend(loc='upper left', bbox_to_anchor=(1, 1), fontsize='small')
+                    # 为图例添加点击事件并设置颜色
+                    for i, text in enumerate(self.legend.get_texts()):
+                        fund_name_current = text.get_text()
+                        text.set_picker(True)
+                        # 根据基金状态设置颜色
+                        if fund_name_current in self.fund_status and not self.fund_status[fund_name_current]:
+                            text.set_color('gray')
+                        else:
+                            # 如果是被点击的基金，突出显示图例
+                            if fund_name_current == fund_name:
+                                text.set_color('red')
+                                text.set_fontweight('bold')
+                            else:
+                                text.set_color('black')
+                                text.set_fontweight('normal')
+                
+                # 调整布局
+                self.fig.tight_layout()
+                
+                # 刷新图表
+                try:
+                    self.canvas_chart.draw()
+                    print(f"突出显示基金: {fund_name}")
+                except Exception as e:
+                    print(f"绘制图表出错: {e}")
+            elif event.mouseevent.button == 3:
+                # 右键点击：切换基金的显示状态
+                self.fund_status[fund_name] = not self.fund_status[fund_name]
+                # 强制清除图表并重新绘制
+                self.ax.clear()
+                self.update_chart()
+                print(f"{'显示' if self.fund_status[fund_name] else '隐藏'}基金: {fund_name}")
 
 def main():
     """主函数"""

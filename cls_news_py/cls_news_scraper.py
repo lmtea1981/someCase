@@ -435,159 +435,75 @@ async def view_news_detail(page, context, news, title):
 
 async def main():
     async with async_playwright() as p:
-        while True:
-            # 随机选择用户代理
-            user_agent = random.choice(USER_AGENTS)
+        # 随机选择用户代理
+        user_agent = random.choice(USER_AGENTS)
+        
+        # 启动无头浏览器
+        browser = await p.chromium.launch(
+            headless=True,
+            channel="chrome",     # 用系统 Chrome，不被杀软拦截
+            args=[
+                f'--user-agent={user_agent}',
+                '--disable-blink-features=AutomationControlled',
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--disable-dev-shm-usage',
+                '--disable-gpu',
+                '--start-maximized',
+                '--disable-extensions',
+                '--disable-plugins',
+                '--disable-popup-blocking'
+            ]
+        )
+        
+        # 创建browser context
+        context = await browser.new_context(
+            user_agent=user_agent,
+            viewport={'width': 1920, 'height': 1080},
+            extra_http_headers={
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+                'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+                'Accept-Encoding': 'gzip, deflate, br',
+                'Connection': 'keep-alive',
+                'Upgrade-Insecure-Requests': '1',
+                'Cache-Control': 'max-age=0',
+                'Referer': 'https://www.google.com/'
+            }
+        )
+        
+        page = await context.new_page()
+        
+        try:
+            # 初始状态
+            section = "头条"
+            news_data = []
+            news_titles = []
             
-            # 启动无头浏览器
-            browser = await p.chromium.launch(
-                headless=True,
-                args=[
-                    f'--user-agent={user_agent}',
-                    '--disable-blink-features=AutomationControlled',
-                    '--no-sandbox',
-                    '--disable-setuid-sandbox',
-                    '--disable-dev-shm-usage',
-                    '--disable-gpu',
-                    '--start-maximized',
-                    '--disable-extensions',
-                    '--disable-plugins',
-                    '--disable-popup-blocking'
-                ]
-            )
-            
-            # 创建browser context
-            context = await browser.new_context(
-                user_agent=user_agent,
-                viewport={'width': 1920, 'height': 1080},
-                extra_http_headers={
-                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
-                    'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
-                    'Accept-Encoding': 'gzip, deflate, br',
-                    'Connection': 'keep-alive',
-                    'Upgrade-Insecure-Requests': '1',
-                    'Cache-Control': 'max-age=0',
-                    'Referer': 'https://www.google.com/'
-                }
-            )
-            
-            page = await context.new_page()
-            
-            try:
-                # 选择查看类型
-                print("\n请选择查看类型:")
-                print("1. 头条")
-                print("2. 电报")
-                print("3. 退出")
+            # 新闻详情交互
+            while True:
+                # 显示菜单
+                print("\n请选择操作类型：")
+                print("1-10. 直接输入编号查看详情")
+                print("a. 逐一朗读所有电报标题及详情")
+                print("l. 朗读选取的详情")
+                print("r. 刷新电报列表")
+                print("rt. 刷新头条列表")
+                print("q. 退出")
                 
-                choice = input("请输入数字选择: ")
+                action = input("请输入选择: ").lower()
                 
-                if choice == "3":
-                    print("感谢使用，再见！")
-                    break
-                
-                if choice not in ["1", "2"]:
-                    print("无效选择，请重新选择")
-                    continue
-                
-                # 获取新闻数据
-                section, news_data = await fetch_news_data(page, context, choice)
-                
-                # 生成新闻标题列表
-                news_titles = []
-                for i, news in enumerate(news_data[:10]):
-                    title = news.get('title', '')
-                    if not title:
-                        # 如果没有标题，使用内容的前50个字符
-                        content = news.get('content', '')
-                        title = content[:50] + "..." if content else f"新闻 {i+1}"
-                    news_titles.append(title)
-                
-                # 新闻详情交互
-                while True:
-                    # 每次都显示新闻列表
-                    print(f"\n{section}新闻列表:")
-                    for i, title in enumerate(news_titles):
-                        print(f"{i+1}. {title}")
-                    
-                    print("\n操作选项:")
-                    print("1-10. 直接输入新闻编号查看详情")
-                    print("l. 朗读选取的新闻详情")
-                    print("r. 刷新新闻列表")
-                    print("b. 返回上一级")
-                    print("q. 退出")
-                    
-                    # 电报菜单添加特殊的朗读功能
-                    if section == "电报":
-                        print("a. 逐一朗读所有电报标题及详情")
-                    
-                    action = input("请输入选择: ").lower()
-                    
-                    # 直接输入新闻编号查看详情
-                    if action.isdigit():
+                # 确保有新闻数据
+                if not news_data:
+                    if action not in ["r", "rt", "a", "q"]:
+                        print("\n请先刷新新闻列表获取数据")
+                        continue
+                    elif action == "a":
+                        # 对于朗读所有电报，自动刷新电报列表
+                        print("\n正在刷新电报列表...")
                         try:
-                            index = int(action) - 1
-                            if 0 <= index < len(news_titles):
-                                news = news_data[index]
-                                title = news_titles[index]
-                                content = await view_news_detail(page, context, news, title)
-                                # 保存当前查看的新闻索引
-                                current_news_index = index
-                            else:
-                                print("无效编号")
-                        except Exception as e:
-                            print(f"查看详情出错: {e}")
-                    
-                    elif action == "l":
-                        # 朗读选取的新闻详情
-                        if 'current_news_index' in locals():
-                            try:
-                                news = news_data[current_news_index]
-                                title = news_titles[current_news_index]
-                                content = news.get('content', '')
-                                if content == title or not content:
-                                    # 重新获取详情
-                                    content = await view_news_detail(page, context, news, title)
-                                
-                                print(f"\n正在朗读新闻...")
-                                await speak_text(f"{title}。{content}")
-                            except Exception as e:
-                                print(f"朗读新闻出错: {e}")
-                        else:
-                            print("请先选择一条新闻查看详情")
-                    
-                    elif action == "a" and section == "电报":
-                        # 逐一朗读所有电报标题及详情
-                        print(f"\n正在逐一朗读所有电报...")
-                        try:
-                            for i, (news, title) in enumerate(zip(news_data, news_titles)):
-                                print(f"\n正在朗读第{i+1}条电报...")
-                                try:
-                                    content = news.get('content', '')
-                                    if content == title or not content:
-                                        # 获取详情
-                                        content = await view_news_detail(page, context, news, title)
-                                    
-                                    # 异步执行TTS，避免阻塞
-                                    await speak_text(f"第{i+1}条电报：{title}。{content}")
-                                    # 每条新闻之间的间隔
-                                    await asyncio.sleep(1)  # 短暂间隔，确保文件清理完成
-                                except Exception as e:
-                                    print(f"朗读第{i+1}条电报出错: {e}")
-                                    # 继续执行，不中断程序
-                                    await asyncio.sleep(1)
-                        except Exception as e:
-                            print(f"朗读过程中出错: {e}")
-                            # 继续执行，不中断程序
-                    
-                    elif action == "r":
-                        # 刷新新闻列表
-                        print("\n正在刷新新闻列表...")
-                        try:
-                            # 重新获取新闻数据
-                            section, news_data = await fetch_news_data(page, context, choice)
+                            section, news_data = await fetch_news_data(page, context, "2")
                             
-                            # 重新生成新闻标题列表
+                            # 生成新闻标题列表
                             news_titles = []
                             for i, news in enumerate(news_data[:10]):
                                 title = news.get('title', '')
@@ -597,31 +513,152 @@ async def main():
                                     title = content[:50] + "..." if content else f"新闻 {i+1}"
                                 news_titles.append(title)
                         except Exception as e:
-                            print(f"刷新新闻列表出错: {e}")
-                    
-                    elif action == "b":
-                        # 返回上一级
-                        break
-                    
-                    elif action == "q":
-                        # 退出
-                        print("感谢使用，再见！")
-                        return
-                    
-                    else:
-                        print("无效选择，请重新选择")
+                            print(f"刷新电报列表出错: {e}")
+                            continue
                 
-            except Exception as e:
-                print(f"程序运行出错: {e}")
-            finally:
-                try:
-                    await context.close()
-                except:
-                    pass
-                try:
-                    await browser.close()
-                except:
-                    pass
+                # 直接输入新闻编号查看详情
+                if action.isdigit():
+                    try:
+                        index = int(action) - 1
+                        if 0 <= index < len(news_titles):
+                            news = news_data[index]
+                            title = news_titles[index]
+                            content = await view_news_detail(page, context, news, title)
+                            # 保存当前查看的新闻索引
+                            current_news_index = index
+                        else:
+                            print("无效编号")
+                    except Exception as e:
+                        print(f"查看详情出错: {e}")
+                
+                elif action == "l":
+                    # 朗读选取的新闻详情
+                    if 'current_news_index' in locals():
+                        try:
+                            news = news_data[current_news_index]
+                            title = news_titles[current_news_index]
+                            content = news.get('content', '')
+                            if content == title or not content:
+                                # 重新获取详情
+                                content = await view_news_detail(page, context, news, title)
+                            
+                            print(f"\n正在朗读新闻...")
+                            await speak_text(f"{title}。{content}")
+                        except Exception as e:
+                            print(f"朗读新闻出错: {e}")
+                    else:
+                        print("请先选择一条新闻查看详情")
+                
+                elif action == "a":
+                    # 逐一朗读所有电报标题及详情
+                    # 确保是电报数据
+                    if section != "电报" or not news_data:
+                        print("\n正在刷新电报列表...")
+                        try:
+                            section, news_data = await fetch_news_data(page, context, "2")
+                            
+                            # 生成新闻标题列表
+                            news_titles = []
+                            for i, news in enumerate(news_data[:10]):
+                                title = news.get('title', '')
+                                if not title:
+                                    # 如果没有标题，使用内容的前50个字符
+                                    content = news.get('content', '')
+                                    title = content[:50] + "..." if content else f"新闻 {i+1}"
+                                news_titles.append(title)
+                        except Exception as e:
+                            print(f"刷新电报列表出错: {e}")
+                            continue
+                    
+                    print(f"\n正在逐一朗读所有电报...")
+                    try:
+                        for i, (news, title) in enumerate(zip(news_data, news_titles)):
+                            print(f"\n正在朗读第{i+1}条电报...")
+                            try:
+                                content = news.get('content', '')
+                                if content == title or not content:
+                                    # 获取详情
+                                    content = await view_news_detail(page, context, news, title)
+                                
+                                # 异步执行TTS，避免阻塞
+                                await speak_text(f"第{i+1}条电报：{title}。{content}")
+                                # 每条新闻之间的间隔
+                                await asyncio.sleep(1)  # 短暂间隔，确保文件清理完成
+                            except Exception as e:
+                                print(f"朗读第{i+1}条电报出错: {e}")
+                                # 继续执行，不中断程序
+                                await asyncio.sleep(1)
+                    except Exception as e:
+                        print(f"朗读过程中出错: {e}")
+                        # 继续执行，不中断程序
+                
+                elif action == "r":
+                    # 刷新电报列表
+                    print("\n正在刷新电报列表...")
+                    try:
+                        # 重新获取电报数据
+                        section, news_data = await fetch_news_data(page, context, "2")
+                        
+                        # 重新生成新闻标题列表
+                        news_titles = []
+                        for i, news in enumerate(news_data[:10]):
+                            title = news.get('title', '')
+                            if not title:
+                                # 如果没有标题，使用内容的前50个字符
+                                content = news.get('content', '')
+                                title = content[:50] + "..." if content else f"新闻 {i+1}"
+                            news_titles.append(title)
+                        
+                        # 显示新闻列表
+                        print(f"\n{section}新闻列表:")
+                        for i, title in enumerate(news_titles):
+                            print(f"{i+1}. {title}")
+                    except Exception as e:
+                        print(f"刷新电报列表出错: {e}")
+                
+                elif action == "rt":
+                    # 刷新头条列表
+                    print("\n正在刷新头条列表...")
+                    try:
+                        # 重新获取头条数据
+                        section, news_data = await fetch_news_data(page, context, "1")
+                        
+                        # 重新生成新闻标题列表
+                        news_titles = []
+                        for i, news in enumerate(news_data[:10]):
+                            title = news.get('title', '')
+                            if not title:
+                                # 如果没有标题，使用内容的前50个字符
+                                content = news.get('content', '')
+                                title = content[:50] + "..." if content else f"新闻 {i+1}"
+                            news_titles.append(title)
+                        
+                        # 显示新闻列表
+                        print(f"\n{section}新闻列表:")
+                        for i, title in enumerate(news_titles):
+                            print(f"{i+1}. {title}")
+                    except Exception as e:
+                        print(f"刷新头条列表出错: {e}")
+                
+                elif action == "q":
+                    # 退出
+                    print("感谢使用，再见！")
+                    return
+                
+                else:
+                    print("无效选择，请重新选择")
+                
+        except Exception as e:
+            print(f"程序运行出错: {e}")
+        finally:
+            try:
+                await context.close()
+            except:
+                pass
+            try:
+                await browser.close()
+            except:
+                pass
 
 if __name__ == "__main__":
     asyncio.run(main())

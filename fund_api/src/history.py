@@ -326,18 +326,9 @@ def main():
         
         print(f"已选择页码范围：{start_page} - {end_page}")
     else:
-        # 查询单个页码
-        while True:
-            try:
-                start_page = int(input("请输入页码（1及以上）："))
-                if start_page >= 1:
-                    end_page = start_page
-                    break
-                else:
-                    print("请输入1及以上的数字")
-            except ValueError:
-                print("请输入有效的数字")
-        
+        # 查询单个页码，默认使用第1页
+        start_page = 1
+        end_page = 1
         print(f"已选择页码：{start_page}")
     
     # 其他配置参数
