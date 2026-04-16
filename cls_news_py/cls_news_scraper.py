@@ -494,7 +494,7 @@ async def main():
                 
                 # 确保有新闻数据
                 if not news_data:
-                    if action not in ["r", "rt", "a", "q"]:
+                    if action not in ["r", "rt", "a", "q"] and not (action.startswith("l") and action[1:].isdigit()):
                         print("\n请先刷新新闻列表获取数据")
                         continue
                     elif action == "a":
@@ -515,6 +515,24 @@ async def main():
                         except Exception as e:
                             print(f"刷新电报列表出错: {e}")
                             continue
+                    elif action.startswith("l") and action[1:].isdigit():
+                        # 对于l+数字方式，自动刷新头条列表
+                        print("\n正在刷新头条列表...")
+                        try:
+                            section, news_data = await fetch_news_data(page, context, "1")
+                            
+                            # 生成新闻标题列表
+                            news_titles = []
+                            for i, news in enumerate(news_data[:10]):
+                                title = news.get('title', '')
+                                if not title:
+                                    # 如果没有标题，使用内容的前50个字符
+                                    content = news.get('content', '')
+                                    title = content[:50] + "..." if content else f"新闻 {i+1}"
+                                news_titles.append(title)
+                        except Exception as e:
+                            print(f"刷新头条列表出错: {e}")
+                            continue
                 
                 # 直接输入新闻编号查看详情
                 if action.isdigit():
@@ -526,6 +544,11 @@ async def main():
                             content = await view_news_detail(page, context, news, title)
                             # 保存当前查看的新闻索引
                             current_news_index = index
+                            
+                            # 显示标题，方便用户继续选择
+                            print(f"\n{section}新闻列表:")
+                            for i, title in enumerate(news_titles):
+                                print(f"{i+1}. {title}")
                         else:
                             print("无效编号")
                     except Exception as e:
@@ -548,6 +571,32 @@ async def main():
                             print(f"朗读新闻出错: {e}")
                     else:
                         print("请先选择一条新闻查看详情")
+                
+                elif action.startswith("l") and action[1:].isdigit():
+                    # l+数字方式直接朗读选取的详情
+                    try:
+                        index = int(action[1:]) - 1
+                        if 0 <= index < len(news_titles):
+                            news = news_data[index]
+                            title = news_titles[index]
+                            content = news.get('content', '')
+                            if content == title or not content:
+                                # 获取详情
+                                content = await view_news_detail(page, context, news, title)
+                            
+                            print(f"\n正在朗读新闻...")
+                            await speak_text(f"{title}。{content}")
+                            # 保存当前查看的新闻索引
+                            current_news_index = index
+                            
+                            # 显示标题，方便用户继续选择
+                            print(f"\n{section}新闻列表:")
+                            for i, title in enumerate(news_titles):
+                                print(f"{i+1}. {title}")
+                        else:
+                            print("无效编号")
+                    except Exception as e:
+                        print(f"朗读新闻出错: {e}")
                 
                 elif action == "a":
                     # 逐一朗读所有电报标题及详情
