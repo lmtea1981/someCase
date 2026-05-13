@@ -1,0 +1,90 @@
+requests:
+
+  - method: POST
+    apiName: '1: 进入文档库'   #提取id
+    url: 'https://{BASE_URL}//DPM-Core-Server/TableController/buildData'
+    params: {}
+    headers:
+      origin: 'https://{BASE_URL}'
+      referer: 'https://{BASE_URL}/'
+      accept: application/json, text/plain, */*
+      x-Requested-With: XMLHttpRequest
+      isc-app: iportal
+      content-Type: application/x-www-form-urlencoded
+      isc-axios-sessionid:
+    dataType: form
+    data:
+      buildClass: com.midea.ext.processdocument.builder.table.SubFolderBuilder
+      objectType: com.midea.ext.processdocument.model.SubFolder
+      folderObjectId : 52039108268
+      containerClassName : com.midea.container.model.MTContainer
+      folderClassName: om.midea.folder.model.Folder
+#      containerObjectId: 1838751
+      tableId: com.midea.ext.processdocument.builder.table.SubFolderBuilder
+      folderId : 2000000000025
+      containerName: INV_M85_广东美芝制冷
+      isSearch: '0'
+    extract:
+#      nubmer: jsonpath:$.data[0].nubmer    #提取对象编码
+      objectId: jsonpath:$.data[0].objectId #提取对象id
+    devopsUseCaseId: AAHO089453
+
+#    查看技术指示数对象
+
+
+  - method: POST
+    apiName: '1: 获取文档库服务'           #          获取服务名称
+    url: 'https://{BASE_URL}/ObjectController/getServerName'
+    params: {}
+    headers:
+      origin: 'https://{BASE_URL}'
+      referer: 'https://{BASE_URL}/'
+      accept: application/json, text/plain, */*
+      x-Requested-With: XMLHttpRequest
+      isc-app: iportal
+      content-Type: application/x-www-form-urlencoded
+      isc-axios-sessionid:
+    dataType: form
+    data:
+      className: com.midea.ext.processdocument.model.ProcessTechnicalDoc
+      objectId: '{objectId}'
+      path: objectDetail
+      _previousTabName: 文档库
+      _current_tab_name: com.midea.ext.processdocument.model.ProcessTechnicalDoc:16053433923017
+      _current_tab_ref_name: objectDetail5
+    extract:
+      data: 'jsonpath:$.data'
+
+    devopsUseCaseId: AAHO089453
+
+
+
+  #    查看技术指示数对象
+
+  - method: POST
+    apiName: '2: 查看技术指示数对象'           #          获取服务名称
+    url: 'https://{BASE_URL}/DPM-Core-Server/ObjectDetailAction/preChecking'
+    params: {}
+    headers:
+      origin: 'https://{BASE_URL}'
+      referer: 'https://{BASE_URL}/'
+      accept: application/json, text/plain, */*
+      x-Requested-With: XMLHttpRequest
+      isc-app: iportal
+      content-Type: application/x-www-form-urlencoded
+      isc-axios-sessionid:
+    dataType: form
+    data:
+      className: com.midea.ext.processdocument.model.ProcessTechnicalDoc
+      objectId: '{objectId}'
+      path: objectDetail
+      _previousTabName: 文档库
+      name: com.midea.ext.processdocument.model.ProcessTechnicalDoc:16053434097253
+      _current_tab_name: com.midea.ext.processdocument.model.ProcessTechnicalDoc:16053434097253
+      _current_tab_ref_name: objectDetail7
+      pageModel: display
+    devopsUseCaseId: AAHO089453
+
+
+#
+
