@@ -1,0 +1,137 @@
+requests:
+  - method: GET
+    apiName: '1: 访问首页'
+    url: 'https://{BASE_URL}'
+    params:
+    headers: { }
+    dataType: form
+    data:
+    devopsUseCaseId: ""
+
+  - method: GET
+    apiName: '2: 访问登录页面'
+    url: 'https://{AUTH_URL}/login'
+    params:
+      service: https://{BASE_URL}/
+    headers: { }
+    dataType: form
+    data:
+    devopsUseCaseId: ""
+
+  - method: POST
+    apiName: '3: 提交登录表单'
+    url: 'https://{AUTH_URL}/login'
+    params:
+      service: https://{BASE_URL}/
+    headers:
+      origin: 'https://{AUTH_URL}'
+      referer: 'https://{AUTH_URL}/login?service=https://{BASE_URL}/'
+      accept: 
+        text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7
+      x-Requested-With: XMLHttpRequest
+      isc-app: iportal
+      content-Type: application/x-www-form-urlencoded
+      isc-axios-sessionid:
+    dataType: form
+    data:
+      username: '{USERNAME}'
+      password: '{PASSWORD}'
+      private_url_a: 'on'
+      execution: e1s1
+      bVisitorId: 7a6da0ed88b85a2e66c1e3d419bd702d
+      bVisitorId2: 1b2ee9e160a8eaff91897fb6c60ff5bf
+      _eventId: submit
+      authType: sms123
+      geolocation: ''
+    devopsUseCaseId: ''
+#
+#  - method: POST
+#    apiName: '4: 获取用户配置'
+#    url: 'https://{BASE_URL}/LDAP-Server/PortalAction/getUserConfig'
+#    params: { }
+#    headers:
+#      origin: 'https://{BASE_URL}'
+#      referer: 'https://{BASE_URL}/'
+#      accept: application/json, text/plain, */*
+#      x-Requested-With: XMLHttpRequest
+#      isc-app: iportal
+#      content-Type: application/json; charset=UTF-8
+#      isc-axios-sessionid:
+#    dataType: none
+#    data: ''
+#    devopsUseCaseId: ''
+#    extract:
+#      userName: $.data.userName  # 提取 userName
+#      userFullName: $.data.userFullName  # 提取 userFullName
+    
+  - method: POST
+    apiName: '5: 获取门户信息'
+    url: 'https://{BASE_URL}/LDAP-Server/PortalObjectAction/getPortalObject'
+    params: { }
+    headers:
+      origin: 'https://{BASE_URL}'
+      referer: 'https://{BASE_URL}/'
+      accept: application/json, text/plain, */*
+      x-Requested-With: XMLHttpRequest
+      isc-app: iportal
+      content-Type: application/json;charset=UTF-8
+      isc-axios-sessionid:
+    dataType: none
+    data: ''
+    devopsUseCaseId: ''
+
+#  - method: POST
+#    apiName: '6: 切换用户到当前登录账号'
+#    url: 'https://{BASE_URL}/LDAP-Server/PortalAction/changeUser'
+#    params: {}
+#    headers:
+#      origin: 'https://{BASE_URL}'
+#      referer: 'https://{BASE_URL}/'
+#      accept: application/json, text/plain, */*
+#      x-requested-with: XMLHttpRequest
+#      isc-app: iportal
+#      content-type: application/x-www-form-urlencoded
+#      isc-axios-sessionid:
+#    dataType: form
+#    data:
+#      nameId: '{userName}'
+#    devopsUseCaseId: ''
+
+  - method: POST
+    apiName: '7: 根据组织ID获取plantId'
+    url: 'https://{BASE_URL}/LDAP-Server/TableController/buildData'
+    params: { }
+    headers:
+      origin: 'https://{BASE_URL}'
+      referer: 'https://{BASE_URL}/'
+      accept: application/json, text/plain, */*
+      x-requested-with: XMLHttpRequest
+      isc-app: iportal
+      content-type: application/x-www-form-urlencoded
+      isc-axios-sessionid:
+    dataType: form
+    data:
+      buildClass: com.midea.component.systemImp.table.BusinessUnitTableBuilder
+      isSearch: '0'
+      tableId: com.midea.component.systemImp.table.BusinessUnitTableBuilder
+    devopsUseCaseId: ''
+    extract:
+      plantId: $.data[?(@.BU_NAME=="M23")].objectId  # 提取 plantId
+
+  - method: POST
+    apiName: '8: 根据plantId切换组织'
+    url: 'https://{BASE_URL}/LDAP-Server/PortalAction/changeBusinessUnit'
+    params:
+      objectId: '{plantId}'
+      className: com.midea.profile.model.Plant
+    headers:
+      origin: 'https://{BASE_URL}'
+      referer: 'https://{BASE_URL}/'
+      accept: application/json, text/plain, */*
+      x-requested-with: XMLHttpRequest
+      isc-app: iportal
+      content-type:
+      isc-axios-sessionid:
+    dataType: none
+    data: ''
+    devopsUseCaseId: ''
