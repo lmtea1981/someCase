@@ -1,0 +1,50 @@
+requests:
+  - method: GET
+    apiName: 1打开网址ibs-hk-uat.midea.com
+    url: https://ibs-hk-uat.midea.com
+    params: None
+    headers: {  }
+    dataType: None
+    data:
+    devopsUseCaseId:  "1111"
+    
+    
+  - method: GET
+    apiName: 2打开网址
+    url: https://ibs-hk-uat.midea.com/login
+    params: None
+    headers: {  }
+    dataType: None
+    data:
+    devopsUseCaseId:  "1111"
+    
+    
+  - method: POST
+    apiName: 3登陆接口
+    url: https://signinuat.midea.com/login?service=https://ibs-hk-uat.midea.com/
+    params: None
+    headers: { "Content-Type": "application/x-www-form-urlencoded" }
+    dataType: None
+    data: username=hanyh&password=jHEUMmnHYnIC%2FF7k%2BvyjvA%3D%3D&mas_remember_me=on&private_url_a=on&execution=e1s1&bVisitorId=02eb85f1a48bf01f6342ae11b1936a62&bVisitorId2=b411673e95038e774c964284fd400f20&_eventId=submit&authType=sms123&geolocation=
+    devopsUseCaseId:  "1111"
+
+
+  - method: POST
+    apiName: 4获取登陆用户信息
+    dataType: json
+    url: https://ibs-hk-uat.midea.com/web/auth-server/user/getSetProfile
+    params: None
+    headers: { "isc-app": "iportal", "Content-Type": "application/json; charset=UTF-8" }
+    data: {}
+    devopsUseCaseId: "11111"
+    
+    
+  - method: POST
+    apiName: 5获取登陆用户信息
+    dataType: json
+    url: https://ibs-hk-uat.midea.com/web/auth-server/login/updateProfile
+    params: None
+    headers: {"Accept": "application/json, text/plain, */*", "X-Requested-With": "XMLHttpRequest", "isc-app": "iportal","Content-Type": "application/json; charset=UTF-8","isc-axios-sessionid": "53f41ece-e460-4abe-8b48-762b4043ae47"  }
+    data: {"__infos": {"orgAttr14": "19005216","orgAttr15": "300000","orgAttr16": "SCH048146-222200","orgAttr17": None,"orgAttr18": None,"orgAttr19": None,"orgAuth": True,"orgAttr10": None,"orgAttr11": "E0203101","intOrgMap": {"ERP OU": [{"erpOuName": "OU_203101_MSEE","intOrgName": "OU_203101_MSEE","attr18": "MYR","attr17": "MY","erpOuId": "1214","erpOuCode": "203101","attr16": "203101","intOrgCode": "MSEE"}]},"orgAttr12": "MSEE","orgAttr13": None,"orgEnuName": "MSEE","orgType": "Business Unit","orgAttr9": None,"orgAttr7": None,"orgAttr8": None,"children": [],"orgCode": "O00002690","orgAttr5": None,"orgAttr6": None,"orgAttr25": None,"orgName": "MSEE","orgCountry": "MY","orgAttr3": None,"orgAttr4": None,"orgAttr1": None,"orgAttr2": None,"orgAttr20": None,"orgAttr21": None,"orgAttr22": None,"orgAttr23": None,"orgFullCode": "O00002679_O00002690","orgAttr24": Noneh}}
+    devopsUseCaseId: "11111"
+
